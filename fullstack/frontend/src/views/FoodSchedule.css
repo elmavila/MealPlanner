@@ -1,3 +1,7 @@
+
+*{
+    background-color: #fbf5ee;
+}
 .navbar{
     list-style-type: none;
     display: flex;

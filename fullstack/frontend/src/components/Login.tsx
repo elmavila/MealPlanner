@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 
 function Login() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [visible, setVisible] = useState(false)
+    const navigate = useNavigate();
 
 
     const handleSumbit = async (event: React.FormEvent) => {
         event.preventDefault();
 
         try {
-            const fetchResponse = await fetch('http://localhost:3030/login',
+            const fetchResponse = await fetch('http://localhost:3031/login',
                 {
                     method: 'POST',
                     headers: {
@@ -23,7 +24,9 @@ function Login() {
             if (fetchResponse.ok) {
                 const data = await fetchResponse.json()
                 console.log('Successfully logged in:', data);
-                alert('Successfully logged in!')
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('userEmail', data.email);
+                navigate('/foodschedule');
             } else {
                 console.error('Login faild');
                 alert('Login failed')
@@ -54,9 +57,7 @@ function Login() {
                         onChange={(e) => setPassword(e.target.value)}
                     />
                 </label>
-                {/* <button type='submit'>Log In</button> */}
-                <button type='submit'><Link to='/foodschedule'>Log In</Link>
-                </button>
+                <button type='submit'>Log In</button>
             </form>
         </div>
     )

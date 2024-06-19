@@ -18,14 +18,19 @@ function Home() {
         navigate('/register')
     }
     return (
-        <div>
-            <h1>Mealplaner</h1>
+        <div className="d-flex flex-column align-items-center">
 
-            <button onClick={handleLoginClick}>Log In</button>
-            <button onClick={handleRegisterClick}>Register</button>
+        <div>
+            <h1 className="display-3">Mealplaner</h1>
+        </div>
+            <div className="mt-4">
+
+            <button className="btn me-3 btn-success" onClick={handleLoginClick}>Log In</button>
+            <button className="ms-3 btn btn-primary" onClick={handleRegisterClick}>Register</button>
 
             {selectedAction === 'login' && <Login />}
             {selectedAction === 'register' && <Register/>}
+</div>
         </div>
 )
 }
