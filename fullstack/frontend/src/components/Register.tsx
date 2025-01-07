@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { validateEmail, validatePassword } from '../helpers/formValidators';
 import { useNavigate } from 'react-router-dom';
 
 function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [visible, setVisible] = useState(false)
+  const [visible] = useState(false)
   const navigate = useNavigate();
 
 

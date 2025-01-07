@@ -1,4 +1,4 @@
-import React, { ChangeEvent, KeyboardEvent, useEffect, useState } from 'react';
+import { KeyboardEvent, useEffect, useState } from 'react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './ShoppingList.css'
 function ShoppingList() {
