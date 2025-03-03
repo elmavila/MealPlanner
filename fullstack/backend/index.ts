@@ -1,168 +1,160 @@
-import cors from 'cors'
-import * as dotenv from 'dotenv'
-import { Client } from 'pg'
-import express, { response } from 'express'
+import cors from 'cors';
+import * as dotenv from 'dotenv';
+import express from 'express';
 import bcrypt from 'bcrypt';
 import nodeCron from 'node-cron';
-import { request } from 'http';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 
-dotenv.config()
-const client = new Client({
-  connectionString: process.env.PGURI
-})
+dotenv.config();
 
-client.connect()
-  .then(() => console.log('Redo att göra databasanrop'))
+const startServer = async () => {
+  const db = await open({
+    filename: './mealplanner.db',
+    driver: sqlite3.Database
+  });
 
-const app = express(),
-  port = process.env.PORT || 3031
-
-app.use(cors())
-app.use(express.json());
-
-
-app.post('/register', async (request, response) => {
-  const { email, password } = request.body
-
-  try {
-    // Hasha lösenordet innan det sparas i databasen
-    const hashedPassword = await bcrypt.hash(password, 10)
-    // Spara användaren i databasen med det hashade lösenordet
-    await client.query('INSERT INTO users (email, password) VALUES ($1, $2)', [email, hashedPassword])
-    const result = await client.query('select id from users where email = $1 limit 1', [email])
-    const userId = result.rows[0].id
-    await client.query(`insert into meal(user_id, dayofweek)
-    values($1,1),
-    ($1,2),
-    ($1,3),
-    ($1,4),
-    ($1,5),
-    ($1,6),
-    ($1,7)
-      `, [userId])
-    response.status(201).json({ message: 'Användare skapad', email })
-  } catch (error) {
-    console.error('Fel vid skapande av användare', error)
-    response.status(500).send('Serverfel')
-  }
-})
-
-//endpoint
-app.post('/login', async (request, response) => {
-  const { email, password } = request.body
-
-  // Kontrollera om användaren redan finns i databasen
-  try {
-    //Platsmarkörer: $1 är en platsmarkör som kommer att ersättas med värdet av email
-    const userResult = await client.query('SELECT * FROM USERS WHERE email = $1', [email])
-
-    // Kontrollera om det finns någon användare i resultatet
-    if (userResult.rows.length > 0) {
-      //Om det finns minst en användare i resultatet, tilldela den första användaren från userResult till variabeln user
-      const user = userResult.rows[0]
-
-      // Jämför det inskickade lösenordet med det hashade lösenordet i databasen
-      if (await bcrypt.compare(password, user.password)) {
-        //skicka tillbaka statuskod, medelnade och vilket anvndar id som är inloggad
-        response.status(200).json({ message: 'Inloggning lyckades!', userId: user.id, email: user.email })
-      } else {
-        response.status(401).send('Felaktikgt lösenord ')
-      }
-    } else {
-      response.status(404).send('User not found')
-    }
-  } catch (error) {
-    console.error('Fel vid databasfgråga', error)
-    response.status(500).send('Serverfel')
-  }
-})
-
-app.get('/foodschedule/:userId', async (request, response) => {
-  const userId = request.params.userId;
-  try {
-    const mealResult = await client.query(`SELECT id,lunch, dinner, user_id as userId, dayOfWeek
-    FROM meal
-    WHERE user_Id = $1
-    ORDER BY dayOfWeek`, [userId]
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
     );
-    response.json(mealResult.rows)
-  } catch (error) {
-    console.error('Fel vid databasfgråga', error)
-    response.status(500).send('Serverfel')
-  }
-})
 
-app.get('/foodschedule/items/:userId', async (request, response) => {
-  const userId = request.params.userId;
+    CREATE TABLE IF NOT EXISTS meal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      dayOfWeek INTEGER NOT NULL,
+      lunch TEXT,
+      dinner TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
 
-  try {
-    const itemsResult = await client.query(`SELECT ingredients FROM shoppinglist WHERE userId = $1`, [userId]);
-    response.json(itemsResult.rows);
-  } catch (error) {
-    console.error('Fel vid databasfgråga', error);
-    response.status(500).send('Serverfel');
-  }
-})
+    CREATE TABLE IF NOT EXISTS shoppinglist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      ingredients TEXT NOT NULL,
+      FOREIGN KEY(userId) REFERENCES users(id)
+    );
+  `);
 
-const clearMealSchedule = async () => {
-  try {
-    await client.query(`
-    UPDATE meal
-    SET lunch=$1
-    ,dinner=$2
-    WHERE id = $3
-    `)
-    console.log('Matschema renast');
-  } catch (error) {
-    console.log(error);
-  }
+  const app = express();
+  const port = process.env.PORT || 3032;
+
+  app.use(cors({origin: 'http://http://localhost:5173',methods: 'GET,POST,PUT,DELETE',
+  allowedHeaders: 'Content-Type,Authorization'}));
+  app.use(express.json());
+
+  // 📝 Registrera användare
+  app.post('/register', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await db.run('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword]);
+      const userId = result.lastID;
+
+      await db.exec(`
+        INSERT INTO meal (user_id, dayOfWeek) VALUES
+        (${userId},1), (${userId},2), (${userId},3),
+        (${userId},4), (${userId},5), (${userId},6), (${userId},7)
+      `);
+
+      res.status(201).json({ message: 'Användare skapad', email });
+    } catch (error) {
+      console.error('Fel vid skapande av användare:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // 🔑 Logga in
+  app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+      if (user && await bcrypt.compare(password, user.password)) {
+        res.status(200).json({ message: 'Inloggning lyckades!', userId: user.id, email: user.email });
+      } else {
+        res.status(401).send('Felaktigt lösenord eller användare saknas');
+      }
+    } catch (error) {
+      console.error('Fel vid databasfråga:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // 📆 Hämta matschema
+  app.get('/foodschedule/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+      const meals = await db.all('SELECT * FROM meal WHERE user_id = ? ORDER BY dayOfWeek', [userId]);
+      res.json(meals);
+    } catch (error) {
+      console.error('Fel vid databasfråga:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // 🛒 Hämta inköpslista
+  app.get('/foodschedule/items/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+      const items = await db.all('SELECT ingredients FROM shoppinglist WHERE userId = ?', [userId]);
+      res.json(items);
+    } catch (error) {
+      console.error('Fel vid databasfråga:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // 🧹 Rensa matschema varje söndag 22:00
+  nodeCron.schedule('0 22 * * 0', async () => {
+    try {
+      await db.exec('UPDATE meal SET lunch = NULL, dinner = NULL');
+      console.log('Matschema rensat');
+    } catch (error) {
+      console.error('Fel vid rensning av matschema:', error);
+    }
+  });
+
+  // ✏️ Uppdatera måltid
+  app.put('/foodschedule', async (req, res) => {
+    const { lunch, dinner, id } = req.body;
+    try {
+      await db.run('UPDATE meal SET lunch = ?, dinner = ? WHERE id = ?', [lunch, dinner, id]);
+      res.status(200).send('Måltid uppdaterad');
+    } catch (error) {
+      console.error('Fel vid databasfråga:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // ➕ Lägg till inköpsprodukt
+  app.post('/foodschedule/items', async (req, res) => {
+    const { ingredients, userId } = req.body;
+    try {
+      await db.run('INSERT INTO shoppinglist (ingredients, userId) VALUES (?, ?)', [ingredients, userId]);
+      res.status(201).send('Produkt tillagd');
+    } catch (error) {
+      console.error('Fel vid sparande av inköpsprodukt:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  // ❌ Ta bort inköpsprodukt
+  app.delete('/foodschedule/items/:itemId', async (req, res) => {
+    const itemId = req.params.itemId;
+    try {
+      await db.run('DELETE FROM shoppinglist WHERE id = ?', [itemId]);
+      res.status(200).send('Produkt borttagen');
+    } catch (error) {
+      console.error('Fel vid borttagning av produkt:', error);
+      res.status(500).send('Serverfel');
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`Redo på http://localhost:${port}/`);
+  });
 };
 
-nodeCron.schedule('0 22 * * 0', clearMealSchedule);
-
-app.put('/foodschedule', async (request, response) => {
-  const { lunch, dinner, id } = request.body
-  try {
-    await client.query(`UPDATE meal
-    SET lunch = $1, dinner = $2
-    WHERE id = $3`, [lunch, dinner, id]);
-    response.status(200).send('Måltid uppdaterad')
-
-  } catch (error) {
-    console.error('Fel vid databasfgråga', error)
-    response.status(500).send('Serverfel')
-  }
-})
-
-app.post('/foodschedule/items', async (request, response) => {
-
-  const { ingredients, userId } = request.body;
-  console.log(ingredients, userId);
-
-  try {
-    await client.query(`INSERT INTO shoppinglist (ingredients, userId) VALUES ($1, $2)`, [ingredients, userId]);
-  } catch (error) {
-    console.error('Fel vid sparande av inköpsprodukt:', error);
-    response.status(500).send('Serverfel');
-  }
-});
-
-app.delete('/foodschedule/items/:itemId', async (request, response) => {
-  const itemId = request.params.itemId;
-
-  try {
-    // Skicka en SQL-fråga för att ta bort den produkt med det angivna id:et från shoppinglist-tabellen
-    await client.query('DELETE FROM shoppinglist WHERE id = $1', [itemId]);
-    // Skicka tillbaka ett svar till klienten att produkten har tagits bort
-    response.status(200).send('Product deleted successfully');
-  } catch (error) {
-    // Om något går fel, skicka ett felmeddelande till klienten
-    console.error('Error deleting product:', error);
-    response.status(500).send('Error deleting product');
-  }
-});
-
-
-app.listen(port, () => {
-  console.log(`Redo på http://localhost:${port}/`)
-})
+startServer();

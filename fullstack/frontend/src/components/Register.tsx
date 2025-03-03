@@ -30,7 +30,7 @@ function Register() {
     }
 
     try {
-      const fetchResponse = await fetch('http://localhost:3031/register',
+      const fetchResponse = await fetch('http://localhost:3032/register',
         {
           method: 'POST',
           headers: {
