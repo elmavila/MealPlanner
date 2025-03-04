@@ -73,7 +73,7 @@ function FoodSchedule() {
   const handleLogout = () => {
     localStorage.removeItem('userEmail')
     localStorage.removeItem('userId')
-    navigate('/home')
+    navigate('/')
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>, id: number, mealType: 'lunch' | 'dinner') => {
