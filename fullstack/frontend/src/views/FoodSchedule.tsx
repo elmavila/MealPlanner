@@ -15,7 +15,7 @@ interface Meal {
 
 function updateMeal(meal: Meal) {
   const userId = localStorage.getItem('userId')
-  fetch('http://localhost:3031/foodschedule', {
+  fetch('http://localhost:3032/foodschedule', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ function FoodSchedule() {
 
     // Kontrollera om användar-ID finns i localStorage innan du hämtar måltider
     if (userId) {
-      fetch(`http://localhost:3031/foodschedule/${userId}`)
+      fetch(`http://localhost:3032/foodschedule/${userId}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)

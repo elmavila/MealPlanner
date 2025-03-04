@@ -18,7 +18,7 @@ function ShoppingList() {
         console.log(userId);
 
         if (userId) {
-            fetch(`http://localhost:3031/foodschedule/items/${userId}`)
+            fetch(`http://localhost:3032/foodschedule/items/${userId}`)
                 .then((response) => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`)
@@ -46,7 +46,7 @@ function ShoppingList() {
             return;
         }
         try {
-            const response = await fetch(`http://localhost:3031/foodschedule/items`, {
+            const response = await fetch(`http://localhost:3032/foodschedule/items`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ function ShoppingList() {
 
 
                 // Hämta den uppdaterade listan från servern
-                fetch(`http://localhost:3031/foodschedule/items/${userId}`)
+                fetch(`http://localhost:3032/foodschedule/items/${userId}`)
                     .then((response) => {
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
@@ -91,7 +91,7 @@ function ShoppingList() {
       const deleteProduct = async (itemId: number) => {
         try {
             // Skicka en DELETE-begäran till backend för att ta bort produkten med det angivna ID:t
-            const response = await fetch(`http://localhost:3031/foodschedule/items/${itemId}`, {
+            const response = await fetch(`http://localhost:3032/foodschedule/items/${itemId}`, {
                 method: 'DELETE',
             });
 
