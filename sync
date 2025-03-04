@@ -1,0 +1,6 @@
+git pull
+cd fullstack/frontend
+npm run build
+cd dist
+cp assets /var/www/html/ -r
+cp index.html /var/www/html/index.html

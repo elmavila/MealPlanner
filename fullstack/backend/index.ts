@@ -41,8 +41,7 @@ const startServer = async () => {
   const app = express();
   const port = process.env.PORT || 3032;
 
-  app.use(cors({origin: 'http://http://localhost:5173',methods: 'GET,POST,PUT,DELETE',
-  allowedHeaders: 'Content-Type,Authorization'}));
+  app.use(cors());
   app.use(express.json());
 
   // 📝 Registrera användare
