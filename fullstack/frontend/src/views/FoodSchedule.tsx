@@ -76,7 +76,7 @@ function FoodSchedule() {
     navigate('/home')
   }
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, id: number, mealType: 'lunch' | 'dinner') => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>, id: number, mealType: 'lunch' | 'dinner') => {
     if (event.key === 'Enter') {
       const newText = (event.target as HTMLInputElement).value
       if (mealType === 'lunch') {
@@ -97,14 +97,15 @@ function FoodSchedule() {
   })
 
   return (
-    <div className='m-3'>
-      <h1 className='display-3'>Food Schedule</h1>
-      <div className='d-flex'>
-      <p className='mt-2'>Logged in as: {userEmail}</p>
-      <button className='ms-3 btn btn-secondary' onClick={handleLogout}>Log out</button>
+    <div className="m-3">
+      <h1 className="display-3">Food Schedule</h1>
+      <div className="d-flex">
+        <p className="mt-2">Logged in as: {userEmail}</p>
+        <button className="ms-3 btn btn-secondary" onClick={handleLogout}>
+          Log out
+        </button>
       </div>
       <nav className="navbar">
-
         <li onClick={() => navigate('/recipes')}>Recipes</li>
       </nav>
       <table className="table  table-hover w-75 ms-5 mt- table-success border-success">
@@ -122,18 +123,42 @@ function FoodSchedule() {
         <tbody>
           {/* skapar denna kod en <td>-tagg för varje måltid i meals-arrayen */}
           <tr>
-
             {meals.map((meal) => (
               <td key={meal.id}>
-                <input className='form-control' type="text" defaultValue={meal.lunch} onBlur={(e) => handleLunch(meal.id, e.target.value)} onKeyDown={(e) => handleKeyDown(e, meal.id, 'lunch')} placeholder="Lunch" />
+                <textarea
+                  className="form-control"
+                  defaultValue={meal.lunch}
+                  onBlur={(e) => handleLunch(meal.id, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, meal.id, 'lunch')}
+                  placeholder="Lunch"
+                  rows={2}
+                  style={{ overflow: 'hidden', minHeight: '40px', width: '100%', resize: 'none' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement
+                    target.style.height = 'auto' // Återställ höjden först
+                    target.style.height = `${target.scrollHeight}px` // Sätt höjden baserat på innehållet
+                  }}
+                />
               </td>
             ))}
           </tr>
-
-           <tr>
+          <tr>
             {meals.map((meal) => (
               <td key={meal.id}>
-                <input className='form-control' type="text" defaultValue={meal.dinner} onBlur={(e) => handleDinner(meal.id, e.target.value)} onKeyDown={(e) => handleKeyDown(e, meal.id, 'dinner')} placeholder="Dinner" />
+                <textarea
+                  className="form-control"
+                  defaultValue={meal.dinner}
+                  onBlur={(e) => handleDinner(meal.id, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, meal.id, 'dinner')}
+                  placeholder="Dinner"
+                  rows={2}
+                  style={{ overflow: 'hidden', minHeight: '40px', width: '100%', resize: 'none' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement
+                    target.style.height = 'auto'
+                    target.style.height = `${target.scrollHeight}px`
+                  }}
+                />
               </td>
             ))}
           </tr>
@@ -141,8 +166,7 @@ function FoodSchedule() {
       </table>
       <ShoppingList></ShoppingList>
     </div>
-
   )
-  }
+}
 
 export default FoodSchedule
