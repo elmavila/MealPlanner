@@ -1,5 +1,14 @@
-.checked {
+.line-through {
     text-decoration: line-through;
 }
 
+.list-group-item {
+    background-color: white !important;
+}
+
+ul.list-group {
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    background-color: white;
+}
 

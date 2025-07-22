@@ -1,138 +1,113 @@
-import { KeyboardEvent, useEffect, useState } from 'react';
-import 'bootstrap-icons/font/bootstrap-icons.css';
+import { KeyboardEvent, useEffect, useState } from 'react'
+import 'bootstrap-icons/font/bootstrap-icons.css'
 import './ShoppingList.css'
+
 function ShoppingList() {
+  interface Product {
+    id: number
+    userId: number
+    ingredients: string
+    checked: boolean
+  }
 
-    interface Product{
-    id:number
-    userId: number;
-    ingredients: string;
+  const [inputValue, setInputValue] = useState<string>('')
+  const [products, setProducts] = useState<Product[]>([])
+
+ useEffect(() => {
+   const userId = localStorage.getItem('userId')
+
+   if (userId) {
+     fetch(`http://localhost:3032/foodschedule/items/${userId}`)
+       .then((response) => response.json())
+       .then((data: Product[]) => {
+         const formatted = data.map((item) => ({
+           ...item,
+           checked: Boolean(item.checked),
+         }))
+         setProducts(formatted)
+       })
+       .catch((error) => console.error('Fel vid hämtning:', error))
+   }
+ }, [])
+
+
+
+  const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || inputValue.trim() === '') return
+
+    const userId = localStorage.getItem('userId')
+    if (!userId) return
+
+    try {
+      const response = await fetch(`http://localhost:3032/foodschedule/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients: inputValue, userId }),
+      })
+
+      if (response.ok) {
+        setInputValue('')
+        const updated = await fetch(`http://localhost:3032/foodschedule/items/${userId}`)
+        const data = await updated.json()
+        setProducts(data)
+      }
+    } catch (error) {
+      console.error('Fel vid tillägg:', error)
     }
+  }
 
-    const [inputValue, setInputValue] = useState<string>('');
-    const [products, setProducts] = useState<Product[]>([]);
-    const [checkedItems, setCheckedItems] = useState<boolean[]>([]);
+  const handleCheckboxChange = async (index: number) => {
+    const updatedProducts = [...products]
+    const product = updatedProducts[index]
+    product.checked = !product.checked
+    setProducts(updatedProducts)
 
-    useEffect(() => {
-        const userId = localStorage.getItem('userId')
-        console.log(userId);
+    try {
+      await fetch(`http://localhost:3032/foodschedule/items/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked: product.checked }),
+      })
+    } catch (error) {
+      console.error('Fel vid checkbox-uppdatering:', error)
+    }
+  }
 
-        if (userId) {
-            fetch(`http://localhost:3032/foodschedule/items/${userId}`)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`)
-                    }
-                    return response.json()
-                })
-                .then((data) => setProducts(data))
-                // Uppdaterar tillståndet 'meals' med den hämtade datan
+  const deleteProduct = async (itemId: number) => {
+    try {
+      const response = await fetch(`http://localhost:3032/foodschedule/items/${itemId}`, {
+        method: 'DELETE',
+      })
 
-                .catch((error) => console.error(error))
-            // Hanterar eventuella fel som uppstår under hämtningen
-        } else {
-            console.error('User ID not found in localStorage')
-        }
-    }, [])
+      if (response.ok) {
+        const updatedProducts = products.filter((p) => p.id !== itemId)
+        setProducts(updatedProducts)
+      }
+    } catch (error) {
+      console.error('Fel vid borttagning:', error)
+    }
+  }
 
-    const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key != 'Enter' || inputValue == '') {
-            return;
-        }
+  return (
+    <div className="mt-5 ms-5">
+      <div className='div-border'>
+        <input type="text" placeholder="Add shopping item" className="form-control w-25 p-2" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} />
+        <h3 className="mt-3 display-6">Shopping list</h3>
 
-        const userId = localStorage.getItem('userId');
-        if (!userId) {
-            console.error('User ID not found in localStorage');
-            return;
-        }
-        try {
-            const response = await fetch(`http://localhost:3032/foodschedule/items`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ingredients: inputValue, userId }),
-            });
-
-            if (response.ok) {
-                console.log('Inköpsprodukt sparad i databasen');
-                setInputValue('');
-
-
-                // Hämta den uppdaterade listan från servern
-                fetch(`http://localhost:3032/foodschedule/items/${userId}`)
-                    .then((response) => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    // .then((data) => setProducts(data))
-                    .then((data) => {
-                    // Lägg till den nya produkten i den befintliga listan av produkter
-                    const updatedProducts = [...products, data];
-                    setProducts(updatedProducts);
-                })
-                    .catch((error) => console.error(error));
-            } else {
-                console.error('Något gick fel vid sparande av inköpsprodukten:', response.statusText);
-            }
-        } catch (error) {
-            console.error('Något gick fel:', error);
-        }
-    };
-
-    const handleCheckboxChange = (index: number) => {
-        const updatedCheckedItems = [...checkedItems];
-        updatedCheckedItems[index] = !updatedCheckedItems[index];
-        setCheckedItems(updatedCheckedItems);
-    };
-
-      const deleteProduct = async (itemId: number) => {
-        try {
-            // Skicka en DELETE-begäran till backend för att ta bort produkten med det angivna ID:t
-            const response = await fetch(`http://localhost:3032/foodschedule/items/${itemId}`, {
-                method: 'DELETE',
-            });
-
-            // Kontrollera om begäran lyckades (statuskod 200)
-            if (response.ok) {
-                console.log('Product deleted successfully');
-                const updatedProducts = products.filter(product => product.id !== itemId);
-                setProducts(updatedProducts)
-                // Uppdatera frontend för att reflektera borttagningen av produkten
-                // Du kan till exempel uppdatera state för produkter eller göra en ny API-anrop för att hämta uppdaterad data
-            } else {
-                console.error('Error deleting product:', response.statusText);
-            }
-        } catch (error) {
-            console.error('Error deleting product:', error);
-        }
-    };
-
-    return (
-        <div className='mt-5 ms-5'>
-            <input type="text" placeholder="Add shopping item" className='form-control w-25 p-2'
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-            ></input>
-            <h3 className='mt-3 display-6'>Shopping list</h3>
-
-            <ul className='w-25 list-group list-group-flush'>
-                {products.map((item, index) => (
-                    <li key={index} className='list-group-item d-flex justify-content-between'>
-                        <input className="form-check-input" type="checkbox"
-                            checked={checkedItems[index]}
-                            onChange={()=> handleCheckboxChange(index)}
-                        />
-                        {item.ingredients}
-                        <button className='btn btn-outline-danger' onClick={()=> deleteProduct(item.id)}><i className=" bi bi-trash"></i></button>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    )
+        <ul className="w-25 list-group list-group-flush">
+          {products.map((item, index) => (
+            <li key={item.id} className="list-group-item d-flex justify-content-between align-items-center">
+              <input className="form-check-input" type="checkbox" checked={item.checked} onChange={() => handleCheckboxChange(index)} />
+              <span className={`ms-2 flex-grow-1 ${item.checked ? 'line-through text-secondary' : ''}`}>{item.ingredients}</span>
+              <button className="btn btn-outline-danger" onClick={() => deleteProduct(item.id)}>
+                <i className="bi bi-trash"></i>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
 }
 
-export default ShoppingList;
+export default ShoppingList
