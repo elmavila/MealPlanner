@@ -97,7 +97,7 @@ function FoodSchedule() {
   })
 
   return (
-    <div className="m-3">
+    <div className="m-3" >
       <h1 className="display-3">Food Schedule</h1>
       <div className="d-flex">
         <p className="mt-2">Logged in as: {userEmail}</p>
