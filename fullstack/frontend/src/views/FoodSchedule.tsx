@@ -1,7 +1,11 @@
 // src/views/FoodSchedule.tsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import './FoodSchedule.css'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ChevronUp } from 'lucide-react'
 import ShoppingList from '../components/ShoppingList'
 
 // Måltids struktur
@@ -28,6 +32,7 @@ function FoodSchedule() {
   // Skapar en tillståndsvariabel 'meals' som initialt är en tom array
   const [meals, setMeals] = useState<Meal[]>([])
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [showScrollToTop, setShowScrollToTop] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -53,6 +58,24 @@ function FoodSchedule() {
       console.error('User ID not found in localStorage')
     }
   }, [])
+
+  // Scroll to top functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      setShowScrollToTop(scrollTop > 400) // Show button after scrolling 400px
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
 
   const handleLunch = (id: number, newText: string) => {
     const userId = parseInt(localStorage.getItem('userId') ?? '0')
@@ -87,84 +110,159 @@ function FoodSchedule() {
     }
   }
 
-  const mealsByDay: Record<string, Meal[]> = {}
-
-  meals.forEach((meal) => {
-    if (!mealsByDay[meal.dayOfWeek]) {
-      mealsByDay[meal.dayOfWeek] = []
-    }
-    mealsByDay[meal.dayOfWeek].push(meal)
-  })
-
   return (
-    <div className="m-3" >
-      <h1 className="display-3">Food Schedule</h1>
-      <div className="d-flex">
-        <p className="mt-2">Logged in as: {userEmail}</p>
-        <button className="ms-3 btn btn-secondary" onClick={handleLogout}>
-          Log out
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-lime-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 space-y-4 md:space-y-0">
+          <h1 className="text-3xl md:text-4xl font-bold text-lime-700">Food Schedule</h1>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <p className="text-gray-600 text-sm md:text-base">
+              Logged in as: <span className="font-medium">{userEmail}</span>
+            </p>
+            <Button onClick={handleLogout} variant="outline" className="border-gray-300 hover:bg-gray-50 w-fit">
+              Log out
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="mb-6">
+          <Button onClick={() => navigate('/recipes')} variant="outline" className="border-lime-600 text-lime-600 hover:bg-lime-50">
+            Recipes
+          </Button>
+        </nav>
+
+        {/* Meal Schedule Table - Desktop Version */}
+        <Card className="mb-8 hidden md:block bg-amber-50/30 border-lime-200">
+          <CardHeader>
+            <CardTitle className="text-2xl text-lime-700">Weekly Meal Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Mon</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Tue</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Wed</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Thu</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Fri</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Sat</TableHead>
+                  <TableHead className="w-[14.28%] text-center font-semibold">Sun</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Lunch Row */}
+                <TableRow>
+                  {meals.map((meal) => (
+                    <TableCell key={`lunch-${meal.id}`} className="p-2">
+                      <Textarea
+                        defaultValue={meal.lunch}
+                        onBlur={(e) => handleLunch(meal.id, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, meal.id, 'lunch')}
+                        placeholder="Lunch"
+                        className="min-h-[60px] resize-none border-lime-200 focus:border-lime-400 focus:ring-lime-400 bg-white/70"
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${target.scrollHeight}px`
+                        }}
+                      />
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {/* Dinner Row */}
+                <TableRow>
+                  {meals.map((meal) => (
+                    <TableCell key={`dinner-${meal.id}`} className="p-2">
+                      <Textarea
+                        defaultValue={meal.dinner}
+                        onBlur={(e) => handleDinner(meal.id, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, meal.id, 'dinner')}
+                        placeholder="Dinner"
+                        className="min-h-[60px] resize-none border-lime-200 focus:border-lime-400 focus:ring-lime-400 bg-white/70"
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement
+                          target.style.height = 'auto'
+                          target.style.height = `${target.scrollHeight}px`
+                        }}
+                      />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Meal Schedule Cards - Mobile Version */}
+        <div className="mb-8 md:hidden space-y-4">
+          <h2 className="text-2xl font-bold text-lime-700 mb-4">Weekly Meal Plan</h2>
+          {meals.map((meal) => {
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            const dayName = dayNames[meal.dayOfWeek - 1] || `Day ${meal.dayOfWeek}`
+
+            return (
+              <Card key={meal.id} className="border-lime-200 bg-amber-50/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-lime-600 flex items-center gap-2">
+                    <span className="text-xl">📅</span>
+                    {dayName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                      <span>🍽️</span>
+                      Lunch
+                    </label>
+                    <Textarea
+                      defaultValue={meal.lunch}
+                      onBlur={(e) => handleLunch(meal.id, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, meal.id, 'lunch')}
+                      placeholder="What's for lunch?"
+                      className="min-h-[80px] resize-none border-lime-200 focus:border-lime-400 focus:ring-lime-400 bg-white/70"
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement
+                        target.style.height = 'auto'
+                        target.style.height = `${target.scrollHeight}px`
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                      <span>🍽️</span>
+                      Dinner
+                    </label>
+                    <Textarea
+                      defaultValue={meal.dinner}
+                      onBlur={(e) => handleDinner(meal.id, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, meal.id, 'dinner')}
+                      placeholder="What's for dinner?"
+                      className="min-h-[80px] resize-none border-lime-200 focus:border-lime-400 focus:ring-lime-400 bg-white/70"
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement
+                        target.style.height = 'auto'
+                        target.style.height = `${target.scrollHeight}px`
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Shopping List */}
+        <ShoppingList />
+
+        {/* Scroll to Top Button - Mobile Only */}
+        {showScrollToTop && (
+          <Button onClick={scrollToTop} className="md:hidden fixed bottom-6 right-6 h-9 w-9 rounded-full bg-lime-600 hover:bg-lime-700 shadow-md z-50 p-0" aria-label="Scroll to top">
+            <ChevronUp className="h-4 w-4 text-white" />
+          </Button>
+        )}
       </div>
-      <nav className="navbar">
-        <li onClick={() => navigate('/recipes')}>Recipes</li>
-      </nav>
-      <table className="table  table-hover w-75 ms-5 mt- table-success border-success">
-        <thead>
-          <tr>
-            <th className="col-md-1">Mon</th>
-            <th className="col-md-1">Tue</th>
-            <th className="col-md-1">Wed</th>
-            <th className="col-md-1">Thu</th>
-            <th className="col-md-1">Fri</th>
-            <th className="col-md-1">Sat</th>
-            <th className="col-md-1">Sun</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* skapar denna kod en <td>-tagg för varje måltid i meals-arrayen */}
-          <tr>
-            {meals.map((meal) => (
-              <td key={meal.id}>
-                <textarea
-                  className="form-control"
-                  defaultValue={meal.lunch}
-                  onBlur={(e) => handleLunch(meal.id, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, meal.id, 'lunch')}
-                  placeholder="Lunch"
-                  rows={2}
-                  style={{ overflow: 'hidden', minHeight: '40px', width: '100%', resize: 'none' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement
-                    target.style.height = 'auto' // Återställ höjden först
-                    target.style.height = `${target.scrollHeight}px` // Sätt höjden baserat på innehållet
-                  }}
-                />
-              </td>
-            ))}
-          </tr>
-          <tr>
-            {meals.map((meal) => (
-              <td key={meal.id}>
-                <textarea
-                  className="form-control"
-                  defaultValue={meal.dinner}
-                  onBlur={(e) => handleDinner(meal.id, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, meal.id, 'dinner')}
-                  placeholder="Dinner"
-                  rows={2}
-                  style={{ overflow: 'hidden', minHeight: '40px', width: '100%', resize: 'none' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement
-                    target.style.height = 'auto'
-                    target.style.height = `${target.scrollHeight}px`
-                  }}
-                />
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
-      <ShoppingList></ShoppingList>
     </div>
   )
 }

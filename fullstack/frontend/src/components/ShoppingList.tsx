@@ -1,6 +1,8 @@
 import { KeyboardEvent, useEffect, useState } from 'react'
-import 'bootstrap-icons/font/bootstrap-icons.css'
-import './ShoppingList.css'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Trash2 } from 'lucide-react'
 
 function ShoppingList() {
   interface Product {
@@ -13,24 +15,22 @@ function ShoppingList() {
   const [inputValue, setInputValue] = useState<string>('')
   const [products, setProducts] = useState<Product[]>([])
 
- useEffect(() => {
-   const userId = localStorage.getItem('userId')
+  useEffect(() => {
+    const userId = localStorage.getItem('userId')
 
-   if (userId) {
-     fetch(`http://localhost:3032/foodschedule/items/${userId}`)
-       .then((response) => response.json())
-       .then((data: Product[]) => {
-         const formatted = data.map((item) => ({
-           ...item,
-           checked: Boolean(item.checked),
-         }))
-         setProducts(formatted)
-       })
-       .catch((error) => console.error('Fel vid hämtning:', error))
-   }
- }, [])
-
-
+    if (userId) {
+      fetch(`http://localhost:3032/foodschedule/items/${userId}`)
+        .then((response) => response.json())
+        .then((data: Product[]) => {
+          const formatted = data.map((item) => ({
+            ...item,
+            checked: Boolean(item.checked),
+          }))
+          setProducts(formatted)
+        })
+        .catch((error) => console.error('Fel vid hämtning:', error))
+    }
+  }, [])
 
   const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || inputValue.trim() === '') return
@@ -89,24 +89,30 @@ function ShoppingList() {
   }
 
   return (
-    <div className="mt-5 ms-5">
-      <div className='div-border'>
-        <input type="text" placeholder="Add shopping item" className="form-control w-25 p-2" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} />
-        <h3 className="mt-3 display-6">Shopping list</h3>
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="text-2xl text-lime-700">Shopping List</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <Input type="text" placeholder="Add shopping item" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} className="w-full" />
 
-        <ul className="w-25 list-group list-group-flush">
-          {products.map((item, index) => (
-            <li key={item.id} className="list-group-item d-flex justify-content-between align-items-center">
-              <input className="form-check-input" type="checkbox" checked={item.checked} onChange={() => handleCheckboxChange(index)} />
-              <span className={`ms-2 flex-grow-1 ${item.checked ? 'line-through text-secondary' : ''}`}>{item.ingredients}</span>
-              <button className="btn btn-outline-danger" onClick={() => deleteProduct(item.id)}>
-                <i className="bi bi-trash"></i>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+          <div className="space-y-2">
+            {products.map((item, index) => (
+              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                <div className="flex items-center space-x-3">
+                  <input type="checkbox" checked={item.checked} onChange={() => handleCheckboxChange(index)} className="h-4 w-4 rounded border-gray-300 text-lime-600 focus:ring-lime-500" />
+                  <span className={`flex-1 ${item.checked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.ingredients}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => deleteProduct(item.id)} className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

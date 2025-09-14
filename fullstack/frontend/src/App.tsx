@@ -3,7 +3,6 @@ import Home from './views/Home'
 import Login from './components/Login'
 import Register from './components/Register'
 import FoodSchedule from './views/FoodSchedule'
-import 'bootstrap/dist/css/bootstrap.min.css'
 
 function App() {
   return (
