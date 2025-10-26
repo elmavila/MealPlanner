@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Login from "../components/Login";
 import Register from "../components/Register";
+import Logo from "@/assets/Yummie.svg";
 
 function Home() {
   const navigate = useNavigate();
@@ -23,7 +24,13 @@ function Home() {
   }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#CCD5AE]">
-      <Card className="w-full max-w-md bg-[#FEFAE0] border border-[#E0E5B6]">
+      <img
+        src={Logo}
+        alt="Mealplaner logo"
+        className="absolute top-20 w-70 h-auto opacity-95"
+      />
+
+      <Card className="w-full max-w-md bg-[#FEFAE0] border border-[#E0E5B6] shadow-lg rounded-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-4xl font-bold mb-4 text-[#CCD5AE]">
             Mealplaner
