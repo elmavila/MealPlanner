@@ -89,9 +89,9 @@ function ShoppingList() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md bg-[#FEFAE0]">
       <CardHeader>
-        <CardTitle className="text-2xl text-lime-700">Shopping List</CardTitle>
+        <CardTitle className="text-2xl text-[#6f8a4f]">Shopping List</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -99,8 +99,8 @@ function ShoppingList() {
 
           <div className="space-y-2">
             {products.map((item, index) => (
-              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-                <div className="flex items-center space-x-3">
+              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card bg-white/70 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center space-x-3 bg-white/70">
                   <input type="checkbox" checked={item.checked} onChange={() => handleCheckboxChange(index)} className="h-4 w-4 rounded border-gray-300 text-lime-600 focus:ring-lime-500" />
                   <span className={`flex-1 ${item.checked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.ingredients}</span>
                 </div>
