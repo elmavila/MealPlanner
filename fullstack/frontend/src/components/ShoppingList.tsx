@@ -40,7 +40,7 @@ function ShoppingList() {
     if (!userId) return
 
     try {
-      const response = await fetch(`/foodschedule/items`, {
+      const response = await fetch(ApiUrl + `/foodschedule/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients: inputValue, userId }),
