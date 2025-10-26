@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ApiUrl } from "@/helpers/apiHelpers";
 
 function Register() {
   const [email, setEmail] = useState("");
@@ -40,7 +41,7 @@ function Register() {
     }
 
     try {
-      const fetchResponse = await fetch("http://localhost:3032/register", {
+      const fetchResponse = await fetch(ApiUrl + "/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

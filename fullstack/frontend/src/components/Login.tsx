@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ApiUrl } from "@/helpers/apiHelpers";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -20,7 +21,7 @@ function Login() {
     event.preventDefault();
 
     try {
-      const fetchResponse = await fetch("http://localhost:3032/login", {
+      const fetchResponse = await fetch(ApiUrl + '/login', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

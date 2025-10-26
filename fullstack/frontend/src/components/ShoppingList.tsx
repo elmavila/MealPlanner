@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trash2 } from 'lucide-react'
+import { ApiUrl } from "@/helpers/apiHelpers";
 
 function ShoppingList() {
   interface Product {
@@ -19,7 +20,7 @@ function ShoppingList() {
     const userId = localStorage.getItem('userId')
 
     if (userId) {
-      fetch(`http://localhost:3032/foodschedule/items/${userId}`)
+      fetch(ApiUrl +`/foodschedule/items/${userId}`)
         .then((response) => response.json())
         .then((data: Product[]) => {
           const formatted = data.map((item) => ({
@@ -39,7 +40,7 @@ function ShoppingList() {
     if (!userId) return
 
     try {
-      const response = await fetch(`http://localhost:3032/foodschedule/items`, {
+      const response = await fetch(`/foodschedule/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients: inputValue, userId }),
@@ -47,7 +48,7 @@ function ShoppingList() {
 
       if (response.ok) {
         setInputValue('')
-        const updated = await fetch(`http://localhost:3032/foodschedule/items/${userId}`)
+        const updated = await fetch(ApiUrl + `/foodschedule/items/${userId}`)
         const data = await updated.json()
         setProducts(data)
       }
@@ -63,7 +64,7 @@ function ShoppingList() {
     setProducts(updatedProducts)
 
     try {
-      await fetch(`http://localhost:3032/foodschedule/items/${product.id}`, {
+      await fetch(ApiUrl + `/foodschedule/items/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checked: product.checked }),
@@ -75,7 +76,7 @@ function ShoppingList() {
 
   const deleteProduct = async (itemId: number) => {
     try {
-      const response = await fetch(`http://localhost:3032/foodschedule/items/${itemId}`, {
+      const response = await fetch(ApiUrl + `/foodschedule/items/${itemId}`, {
         method: 'DELETE',
       })
 
