@@ -41,11 +41,21 @@ const startServer = async () => {
   const app = express()
   const port = process.env.PORT || 3032
 
-  app.use(cors())
+  app.use(cors({
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://mealplanner.chrispys.top',
+      'https://www.mealplanner.chrispys.top',
+    ],
+    credentials: true,
+  }))
   app.use(express.json())
 
+  const apiRouter = express.Router()
+
   // 📝 Registrera användare
-  app.post('/register', async (req, res) => {
+  apiRouter.post('/register', async (req, res) => {
     const { email, password } = req.body
     try {
       const hashedPassword = await bcrypt.hash(password, 10)
@@ -66,7 +76,7 @@ const startServer = async () => {
   })
 
   // 🔑 Logga in
-  app.post('/login', async (req, res) => {
+  apiRouter.post('/login', async (req, res) => {
     const { email, password } = req.body
     try {
       const user = await db.get('SELECT * FROM users WHERE email = ?', [email])
@@ -82,7 +92,7 @@ const startServer = async () => {
   })
 
   // 📆 Hämta matschema
-  app.get('/foodschedule/:userId', async (req, res) => {
+  apiRouter.get('/foodschedule/:userId', async (req, res) => {
     const userId = req.params.userId
     try {
       const meals = await db.all('SELECT * FROM meal WHERE user_id = ? ORDER BY dayOfWeek', [userId])
@@ -94,7 +104,7 @@ const startServer = async () => {
   })
 
   // 🛒 Hämta inköpslista
-  app.get('/foodschedule/items/:userId', async (req, res) => {
+  apiRouter.get('/foodschedule/items/:userId', async (req, res) => {
     const userId = req.params.userId
     try {
       const items = await db.all('SELECT id, ingredients, checked FROM shoppinglist WHERE userId = ?', [userId])
@@ -116,7 +126,7 @@ const startServer = async () => {
   })
 
   // ✏️ Uppdatera måltid
-  app.put('/foodschedule', async (req, res) => {
+  apiRouter.put('/foodschedule', async (req, res) => {
     const { lunch, dinner, id } = req.body
     try {
       await db.run('UPDATE meal SET lunch = ?, dinner = ? WHERE id = ?', [lunch, dinner, id])
@@ -128,7 +138,7 @@ const startServer = async () => {
   })
 
   // ➕ Lägg till inköpsprodukt
-  app.post('/foodschedule/items', async (req, res) => {
+  apiRouter.post('/foodschedule/items', async (req, res) => {
     const { ingredients, userId } = req.body
     try {
       await db.run('INSERT INTO shoppinglist (ingredients, userId) VALUES (?, ?)', [ingredients, userId])
@@ -140,7 +150,7 @@ const startServer = async () => {
   })
 
   // ❌ Ta bort inköpsprodukt
-  app.delete('/foodschedule/items/:itemId', async (req, res) => {
+  apiRouter.delete('/foodschedule/items/:itemId', async (req, res) => {
     const itemId = req.params.itemId
     try {
       await db.run('DELETE FROM shoppinglist WHERE id = ?', [itemId])
@@ -152,7 +162,7 @@ const startServer = async () => {
   })
 
   // 🛒 Uppdatera inköpsprodukt
-  app.patch('/foodschedule/items/:itemId', async (req, res) => {
+  apiRouter.patch('/foodschedule/items/:itemId', async (req, res) => {
     const itemId = req.params.itemId
     const { checked } = req.body // förväntar sig true/false från frontend
 
@@ -164,6 +174,8 @@ const startServer = async () => {
       res.status(500).send('Serverfel')
     }
   })
+
+  app.use('/api', apiRouter)
 
   app.listen(port, () => {
     console.log(`Redo på http://localhost:${port}/`)

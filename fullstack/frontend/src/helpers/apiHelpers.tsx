@@ -1,5 +1,9 @@
-// export const ApiUrl = "https://chrispys.top/meal-server";
-//https://chrispys.top/
-// export const ApiUrl = 'http://localhost:3032';
-// TODO use env variables for API url instead. OR check if prod or debug is an option in nodejs
-export const ApiUrl = 'http://localhost:3032';
+const apiOrigin = typeof window !== 'undefined'
+  ? window.location.origin
+  : 'http://localhost:5173';
+
+const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+export const ApiUrl = isLocalDev
+  ? 'http://localhost:3032/api'
+  : `${apiOrigin}/api`;
