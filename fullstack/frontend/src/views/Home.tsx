@@ -28,7 +28,7 @@ function Home() {
         <img
           src={Logo}
           alt="Mealplaner logo"
-          className="w-full max-w-md sm:max-w-lg lg:max-w-2xl h-auto max-h-[40vh] object-contain opacity-95"
+          className="w-[85%] max-w-xs sm:w-full sm:max-w-sm lg:max-w-lg h-auto max-h-[30vh] object-contain opacity-95"
         />
       </div>
 
