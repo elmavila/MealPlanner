@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, Eraser } from "lucide-react";
 import ShoppingList from "../components/ShoppingList";
 import { ApiUrl } from "@/helpers/apiHelpers";
 
@@ -49,7 +49,7 @@ function FoodSchedule() {
 
     // Kontrollera om användar-ID finns i localStorage innan du hämtar måltider
     if (userId) {
-      fetch(ApiUrl +`/foodschedule/${userId}`)
+      fetch(ApiUrl + `/foodschedule/${userId}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -88,17 +88,40 @@ function FoodSchedule() {
   const handleLunch = (id: number, newText: string) => {
     const userId = parseInt(localStorage.getItem("userId") ?? "0");
     const meal = meals.find((m) => m.id == id)!;
-    meal.lunch = newText;
-    updateMeal({ ...meal, userId });
+    const updatedMeal = { ...meal, lunch: newText, userId };
+    setMeals((currentMeals) =>
+      currentMeals.map((currentMeal) =>
+        currentMeal.id === id ? updatedMeal : currentMeal,
+      ),
+    );
+    updateMeal(updatedMeal);
     console.log(`${id}, ${newText}`);
   };
 
   const handleDinner = (id: number, newText: string) => {
     const userId = parseInt(localStorage.getItem("userId") ?? "0");
     const meal = meals.find((m) => m.id == id)!;
-    meal.dinner = newText;
-    updateMeal({ ...meal, userId });
+    const updatedMeal = { ...meal, dinner: newText, userId };
+    setMeals((currentMeals) =>
+      currentMeals.map((currentMeal) =>
+        currentMeal.id === id ? updatedMeal : currentMeal,
+      ),
+    );
+    updateMeal(updatedMeal);
     console.log(`${id}, ${newText}`);
+  };
+
+  const handleClearAll = () => {
+    const userId = parseInt(localStorage.getItem("userId") ?? "0");
+    const clearedMeals = meals.map((meal) => ({
+      ...meal,
+      lunch: "",
+      dinner: "",
+      userId,
+    }));
+
+    setMeals(clearedMeals);
+    clearedMeals.forEach(updateMeal);
   };
 
   const handleLogout = () => {
@@ -110,7 +133,7 @@ function FoodSchedule() {
   const handleKeyDown = (
     event: React.KeyboardEvent<HTMLTextAreaElement>,
     id: number,
-    mealType: "lunch" | "dinner"
+    mealType: "lunch" | "dinner",
   ) => {
     if (event.key === "Enter") {
       const newText = (event.target as HTMLInputElement).value;
@@ -146,13 +169,23 @@ function FoodSchedule() {
 
         {/* Navigation */}
         <nav className="mb-6">
-          <Button
-            onClick={() => navigate("/recipes")}
-            variant="outline"
-            className="border-[#6f8a4f] bg-[#FEFAE0] text-[#6f8a4f] hover:bg-lime-50"
-          >
-            Recipes
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => navigate("/recipes")}
+              variant="outline"
+              className="border-[#6f8a4f] bg-[#FEFAE0] text-[#6f8a4f] hover:bg-lime-50"
+            >
+              Recipes
+            </Button>
+            <Button
+              onClick={handleClearAll}
+              variant="outline"
+              className="border-red-300 bg-[#FEFAE0] text-red-600 hover:bg-red-50"
+            >
+              <Eraser className="h-4 w-4" />
+              Clear all fields
+            </Button>
+          </div>
         </nav>
 
         {/* Meal Schedule Table - Desktop Version */}
@@ -195,7 +228,7 @@ function FoodSchedule() {
                   {meals.map((meal) => (
                     <TableCell key={`lunch-${meal.id}`} className="p-2">
                       <Textarea
-                        defaultValue={meal.lunch}
+                        value={meal.lunch}
                         onBlur={(e) => handleLunch(meal.id, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
                         placeholder="Lunch"
@@ -214,7 +247,7 @@ function FoodSchedule() {
                   {meals.map((meal) => (
                     <TableCell key={`dinner-${meal.id}`} className="p-2">
                       <Textarea
-                        defaultValue={meal.dinner}
+                        value={meal.dinner}
                         onBlur={(e) => handleDinner(meal.id, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
                         placeholder="Dinner"
@@ -265,7 +298,7 @@ function FoodSchedule() {
                       Lunch
                     </label>
                     <Textarea
-                      defaultValue={meal.lunch}
+                      value={meal.lunch}
                       onBlur={(e) => handleLunch(meal.id, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
                       placeholder="What's for lunch?"
@@ -282,7 +315,7 @@ function FoodSchedule() {
                       Dinner
                     </label>
                     <Textarea
-                      defaultValue={meal.dinner}
+                      value={meal.dinner}
                       onBlur={(e) => handleDinner(meal.id, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
                       placeholder="What's for dinner?"
