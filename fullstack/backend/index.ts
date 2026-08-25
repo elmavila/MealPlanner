@@ -58,11 +58,15 @@ const startServer = async () => {
     "https://mealplanner.chrispys.top",
     "https://www.mealplanner.chrispys.top",
   ];
+  const isLocalNetworkOrigin = (origin: string) =>
+    /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):(?:5173|4173)$/.test(
+      origin,
+    );
 
   app.use((req, res, next) => {
     const origin = req.headers.origin;
 
-    if (origin && allowedOrigins.includes(origin)) {
+    if (origin && (allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin))) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader(
@@ -84,7 +88,13 @@ const startServer = async () => {
 
   app.use(
     cors({
-      origin: allowedOrigins,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Origin not allowed by CORS"));
+        }
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
