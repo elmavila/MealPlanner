@@ -234,6 +234,7 @@ function FoodSchedule() {
                     <TableCell key={`lunch-${meal.id}`} className="p-2">
                       <Textarea
                         value={meal.lunch}
+                        onChange={(e) => handleLunch(meal.id, e.target.value)}
                         onBlur={(e) => handleLunch(meal.id, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
                         placeholder="Lunch"
@@ -253,6 +254,7 @@ function FoodSchedule() {
                     <TableCell key={`dinner-${meal.id}`} className="p-2">
                       <Textarea
                         value={meal.dinner}
+                        onChange={(e) => handleDinner(meal.id, e.target.value)}
                         onBlur={(e) => handleDinner(meal.id, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
                         placeholder="Dinner"
@@ -304,6 +306,7 @@ function FoodSchedule() {
                     </label>
                     <Textarea
                       value={meal.lunch}
+                      onChange={(e) => handleLunch(meal.id, e.target.value)}
                       onBlur={(e) => handleLunch(meal.id, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
                       placeholder="What's for lunch?"
@@ -321,6 +324,7 @@ function FoodSchedule() {
                     </label>
                     <Textarea
                       value={meal.dinner}
+                      onChange={(e) => handleDinner(meal.id, e.target.value)}
                       onBlur={(e) => handleDinner(meal.id, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
                       placeholder="What's for dinner?"
