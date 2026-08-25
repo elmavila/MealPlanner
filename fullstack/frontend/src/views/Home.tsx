@@ -24,11 +24,13 @@ function Home() {
   }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#CCD5AE]">
-      <img
-        src={Logo}
-        alt="Mealplaner logo"
-        className="absolute top-20 w-70 h-auto opacity-95"
-      />
+      <div className="w-full flex justify-center mb-6">
+        <img
+          src={Logo}
+          alt="Mealplaner logo"
+          className="w-full max-w-md sm:max-w-lg lg:max-w-2xl h-auto max-h-[40vh] object-contain opacity-95"
+        />
+      </div>
 
       <Card className="w-full max-w-md bg-[#FEFAE0] border border-[#E0E5B6] shadow-lg rounded-2xl">
         <CardHeader className="text-center">
