@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,8 +33,9 @@ function ShoppingList() {
     }
   }, []);
 
-  const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter" || inputValue.trim() === "") return;
+  const handleAddItem = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (inputValue.trim() === "") return;
 
     const userId = localStorage.getItem("userId");
     if (!userId) return;
@@ -109,14 +110,15 @@ function ShoppingList() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <Input
-            type="text"
-            placeholder="Add shopping item"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="w-full"
-          />
+          <form onSubmit={handleAddItem}>
+            <Input
+              type="text"
+              placeholder="Add shopping item"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="w-full"
+            />
+          </form>
 
           <div className="space-y-2">
             {products.map((item, index) => (
