@@ -112,6 +112,11 @@ function FoodSchedule() {
   };
 
   const handleClearAll = () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to clear all lunch and dinner fields?",
+    );
+    if (!confirmed) return;
+
     const userId = parseInt(localStorage.getItem("userId") ?? "0");
     const clearedMeals = meals.map((meal) => ({
       ...meal,
@@ -180,7 +185,7 @@ function FoodSchedule() {
             <Button
               onClick={handleClearAll}
               variant="outline"
-              className="border-red-300 bg-[#FEFAE0] text-red-600 hover:bg-red-50"
+              className="border-[#d9aaaa] bg-[#FEFAE0] text-[#a65d5d] hover:bg-[#f8eeee]"
             >
               <Eraser className="h-4 w-4" />
               Clear all fields
