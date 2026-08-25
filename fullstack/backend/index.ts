@@ -66,7 +66,10 @@ const startServer = async () => {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
 
-    if (origin && (allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin))) {
+    if (
+      origin &&
+      (allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin))
+    ) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader(
@@ -89,7 +92,11 @@ const startServer = async () => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || isLocalNetworkOrigin(origin)) {
+        if (
+          !origin ||
+          allowedOrigins.includes(origin) ||
+          isLocalNetworkOrigin(origin)
+        ) {
           callback(null, true);
         } else {
           callback(new Error("Origin not allowed by CORS"));
@@ -134,13 +141,11 @@ const startServer = async () => {
     try {
       const user = await db.get("SELECT * FROM users WHERE email = ?", [email]);
       if (user && (await bcrypt.compare(password, user.password))) {
-        res
-          .status(200)
-          .json({
-            message: "Inloggning lyckades!",
-            userId: user.id,
-            email: user.email,
-          });
+        res.status(200).json({
+          message: "Inloggning lyckades!",
+          userId: user.id,
+          email: user.email,
+        });
       } else {
         res.status(401).send("Felaktigt lösenord eller användare saknas");
       }
