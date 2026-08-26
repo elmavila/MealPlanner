@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronUp, Eraser } from "lucide-react";
+import { ChefHat, ChevronUp, Eraser } from "lucide-react";
 import ShoppingList from "../components/ShoppingList";
 import { ApiUrl } from "@/helpers/apiHelpers";
 
@@ -155,9 +155,15 @@ function FoodSchedule() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 space-y-4 md:space-y-0">
-          <h1 className="text-3xl md:text-4xl font-bold text-[#FEFAE0]">
-            Food Schedule
-          </h1>
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-[#8b9b68]">
+              <ChefHat className="h-4 w-4" />
+              Mealplanner
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-[#FEFAE0]">
+              Food Schedule
+            </h1>
+          </div>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
             <p className="text-gray-600 text-sm md:text-base">
               Logged in as: <span className="font-medium">{userEmail}</span>
