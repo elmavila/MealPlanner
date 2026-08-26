@@ -2,7 +2,6 @@ import cors from "cors";
 import * as dotenv from "dotenv";
 import express from "express";
 import bcrypt from "bcrypt";
-import nodeCron from "node-cron";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
@@ -37,7 +36,23 @@ const startServer = async () => {
       checked INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY(userId) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS recipe (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      servings INTEGER NOT NULL,
+      image TEXT,
+      description TEXT NOT NULL DEFAULT '',
+      ingredients TEXT NOT NULL,
+      instructions TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
   `);
+
+  await db.run("UPDATE recipe SET description = '' WHERE description = ?", [
+    "Ett eget favoritrecept.",
+  ]);
 
   const shoppingListColumns = await db.all("PRAGMA table_info(shoppinglist)");
   if (
@@ -107,11 +122,10 @@ const startServer = async () => {
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
-  app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
 
   const apiRouter = express.Router();
 
-  // 📝 Registrera användare
   apiRouter.post("/register", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -135,7 +149,6 @@ const startServer = async () => {
     }
   });
 
-  // 🔑 Logga in
   apiRouter.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -155,7 +168,6 @@ const startServer = async () => {
     }
   });
 
-  // 📆 Hämta matschema
   apiRouter.get("/foodschedule/:userId", async (req, res) => {
     const userId = req.params.userId;
     try {
@@ -170,7 +182,133 @@ const startServer = async () => {
     }
   });
 
-  // 🛒 Hämta inköpslista
+  apiRouter.get("/recipes/:userId", async (req, res) => {
+    try {
+      const recipeRows = await db.all(
+        "SELECT id, title, servings, image, description, ingredients, instructions FROM recipe WHERE user_id = ? ORDER BY id DESC",
+        [req.params.userId],
+      );
+      const recipeList = recipeRows.map((recipe) => ({
+        ...recipe,
+        ingredients: JSON.parse(recipe.ingredients),
+        instructions: JSON.parse(recipe.instructions),
+      }));
+      res.json(recipeList);
+    } catch (error) {
+      console.error("Fel vid hämtning av recept:", error);
+      res.status(500).send("Serverfel");
+    }
+  });
+
+  apiRouter.post("/recipes", async (req, res) => {
+    const { title, servings, image, ingredients, instructions, userId } =
+      req.body;
+    if (
+      !title ||
+      !Array.isArray(ingredients) ||
+      !ingredients.length ||
+      !Array.isArray(instructions) ||
+      !instructions.length ||
+      !userId
+    ) {
+      res.status(400).json({
+        message: "Titel, ingredienser, instruktioner och användare krävs",
+      });
+      return;
+    }
+
+    try {
+      const result = await db.run(
+        "INSERT INTO recipe (user_id, title, servings, image, ingredients, instructions) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+          userId,
+          title.trim(),
+          Math.max(1, Number(servings) || 1),
+          image || null,
+          JSON.stringify(ingredients),
+          JSON.stringify(instructions),
+        ],
+      );
+      res.status(201).json({
+        id: Number(result.lastID),
+        title: title.trim(),
+        servings: Math.max(1, Number(servings) || 1),
+        image: image || "",
+        description: "",
+        ingredients,
+        instructions,
+      });
+    } catch (error) {
+      console.error("Fel vid sparande av recept:", error);
+      res.status(500).send("Serverfel");
+    }
+  });
+
+  apiRouter.put("/recipes/:recipeId", async (req, res) => {
+    const { title, servings, image, ingredients, instructions, userId } =
+      req.body;
+    if (
+      !title ||
+      !Array.isArray(ingredients) ||
+      !ingredients.length ||
+      !Array.isArray(instructions) ||
+      !instructions.length ||
+      !userId
+    ) {
+      res.status(400).json({ message: "Ofullständigt recept" });
+      return;
+    }
+
+    try {
+      const result = await db.run(
+        "UPDATE recipe SET title = ?, servings = ?, image = ?, ingredients = ?, instructions = ? WHERE id = ? AND user_id = ?",
+        [
+          title.trim(),
+          Math.max(1, Number(servings) || 1),
+          image || null,
+          JSON.stringify(ingredients),
+          JSON.stringify(instructions),
+          req.params.recipeId,
+          userId,
+        ],
+      );
+      if (!result.changes) {
+        res.status(404).json({ message: "Receptet hittades inte" });
+        return;
+      }
+      res.json({
+        id: Number(req.params.recipeId),
+        title: title.trim(),
+        servings: Math.max(1, Number(servings) || 1),
+        image: image || "",
+        description: "",
+        ingredients,
+        instructions,
+      });
+    } catch (error) {
+      console.error("Fel vid redigering av recept:", error);
+      res.status(500).send("Serverfel");
+    }
+  });
+
+  apiRouter.delete("/recipes/:recipeId", async (req, res) => {
+    const { userId } = req.body;
+    try {
+      const result = await db.run(
+        "DELETE FROM recipe WHERE id = ? AND user_id = ?",
+        [req.params.recipeId, userId],
+      );
+      if (!result.changes) {
+        res.status(404).json({ message: "Receptet hittades inte" });
+        return;
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Fel vid radering av recept:", error);
+      res.status(500).send("Serverfel");
+    }
+  });
+
   apiRouter.get("/foodschedule/items/:userId", async (req, res) => {
     const userId = req.params.userId;
     try {
@@ -185,17 +323,6 @@ const startServer = async () => {
     }
   });
 
-  // 🧹 Rensa matschema varje söndag 22:00
-  nodeCron.schedule("0 22 * * 0", async () => {
-    try {
-      await db.exec("UPDATE meal SET lunch = NULL, dinner = NULL");
-      console.log("Matschema rensat");
-    } catch (error) {
-      console.error("Fel vid rensning av matschema:", error);
-    }
-  });
-
-  // ✏️ Uppdatera måltid
   apiRouter.put("/foodschedule", async (req, res) => {
     const { lunch, dinner, id } = req.body;
     try {
@@ -211,7 +338,6 @@ const startServer = async () => {
     }
   });
 
-  // ➕ Lägg till inköpsprodukt
   apiRouter.post("/foodschedule/items", async (req, res) => {
     const { ingredients, userId } = req.body;
     try {
@@ -226,7 +352,6 @@ const startServer = async () => {
     }
   });
 
-  // ❌ Ta bort inköpsprodukt
   apiRouter.delete("/foodschedule/items/:itemId", async (req, res) => {
     const itemId = req.params.itemId;
     try {
@@ -238,7 +363,6 @@ const startServer = async () => {
     }
   });
 
-  // 🛒 Uppdatera inköpsprodukt
   apiRouter.patch("/foodschedule/items/:itemId", async (req, res) => {
     const itemId = req.params.itemId;
     const { checked } = req.body; // förväntar sig true/false från frontend
