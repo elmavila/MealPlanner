@@ -96,7 +96,15 @@ function FoodSchedule() {
           }
           return response.json();
         })
-        .then((data) => setMeals(data))
+        .then((data: Meal[]) =>
+          setMeals(
+            data.map((meal) => ({
+              ...meal,
+              lunch: meal.lunch ?? "",
+              dinner: meal.dinner ?? "",
+            })),
+          ),
+        )
         // Uppdaterar tillståndet 'meals' med den hämtade datan
 
         .catch((error) => console.error("Error fetching meals:", error));
@@ -160,8 +168,8 @@ function FoodSchedule() {
     console.log(`${id}, ${newText}`);
   };
 
-  const normalizeRecipeText = (text: string) =>
-    text.trim().replace(/\s+/g, " ").toLocaleLowerCase("sv-SE");
+  const normalizeRecipeText = (text: string | null | undefined) =>
+    (text ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("sv-SE");
 
   const findRecipeLink = (mealText: string) =>
     recipeLinks.find(
