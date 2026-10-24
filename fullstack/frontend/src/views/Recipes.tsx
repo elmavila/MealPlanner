@@ -119,9 +119,9 @@ function Recipes() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f5df] px-4 py-8 text-[#263126] sm:px-8 lg:px-12">
+    <main className="min-h-screen bg-[#f8f5df] px-4 py-5 text-[#263126] sm:px-8 sm:py-8 lg:px-12">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-10 flex flex-col gap-6 sm:mb-14 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-14 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-[#8b9b68]">
               <ChefHat className="h-4 w-4" />
@@ -167,7 +167,7 @@ function Recipes() {
           />
         )}
 
-        <section className="mb-10 flex flex-col gap-5 border-b border-[#dce3c6] pb-8 sm:flex-row sm:items-center sm:justify-between">
+        <section className="mb-6 flex flex-col gap-3 border-b border-[#dce3c6] pb-5 sm:mb-10 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:pb-8">
           <div>
             <h2 className="text-xl font-semibold text-[#313b2e]">My recipes</h2>
             <p className="mt-1 text-sm text-[#7b846f]">
@@ -189,32 +189,32 @@ function Recipes() {
         </section>
 
         {filteredRecipes.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
             {filteredRecipes.map((recipe) => (
               <button
                 type="button"
                 onClick={() => navigate(`/recipes/${recipe.id}`)}
                 key={recipe.id}
-                className="w-full overflow-hidden rounded-xl border-2 border-[#cbd7ad] bg-[#fbf8e9] text-left shadow-[0_8px_24px_rgba(95,110,66,0.07)] transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#71834e]"
+                className="h-full w-full overflow-hidden rounded-xl border-2 border-[#cbd7ad] bg-[#fbf8e9] text-left shadow-[0_8px_24px_rgba(95,110,66,0.07)] transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#71834e]"
               >
-                <div className="aspect-[4/3] overflow-hidden bg-[#e6ebd5]">
+                <div className="aspect-[3/2] overflow-hidden bg-[#e6ebd5] sm:aspect-[4/3]">
                   <RecipeImage
                     src={recipe.image}
                     alt={recipe.title}
                     className="h-full w-full object-cover object-center"
                   />
                 </div>
-                <div className="p-5">
+                <div className="p-3 sm:p-5">
                   {recipe.category && (
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8b9b68]">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#8b9b68] sm:text-xs sm:tracking-[0.14em]">
                       {recipe.category}
                     </span>
                   )}
-                  <h3 className="mt-2 text-xl font-semibold text-[#202820]">
+                  <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-tight text-[#202820] sm:mt-2 sm:text-xl">
                     {recipe.title}
                   </h3>
                   {recipe.description && (
-                    <p className="mt-2 text-sm leading-6 text-[#697364]">
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#697364] sm:mt-2 sm:text-sm sm:leading-6">
                       {recipe.description}
                     </p>
                   )}

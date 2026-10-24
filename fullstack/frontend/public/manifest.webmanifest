@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Meal Planner",
+  "short_name": "Meal Planner",
+  "description": "Planera veckans måltider och recept.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf5ee",
+  "theme_color": "#ccd5ae",
+  "icons": [
+    {
+      "src": "/icons/yummie-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/yummie-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
