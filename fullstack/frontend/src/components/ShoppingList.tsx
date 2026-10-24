@@ -5,7 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import { ApiUrl } from "@/helpers/apiHelpers";
 
-function ShoppingList() {
+interface ShoppingListProps {
+  weekStart: string;
+}
+
+function ShoppingList({ weekStart }: ShoppingListProps) {
   interface Product {
     id: number;
     userId: number;
@@ -17,20 +21,28 @@ function ShoppingList() {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
+    const loadProducts = () => {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
 
-    if (userId) {
-      fetch(ApiUrl + `/foodschedule/items/${userId}`)
-        .then((response) => response.json())
+      fetch(ApiUrl + `/foodschedule/items/${userId}?weekStart=${weekStart}`)
+        .then((response) => {
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+          return response.json();
+        })
         .then((data: Product[]) => {
-          const formatted = data.map((item) => ({
-            ...item,
-            checked: Boolean(item.checked),
-          }));
-          setProducts(formatted);
+          setProducts(
+            data.map((item) => ({ ...item, checked: Boolean(item.checked) })),
+          );
         })
         .catch((error) => console.error("Fel vid hämtning:", error));
-    }
+    };
+
+    loadProducts();
+    window.addEventListener("shopping-list-updated", loadProducts);
+    return () =>
+      window.removeEventListener("shopping-list-updated", loadProducts);
   }, []);
 
   const handleAddItem = async (e: FormEvent<HTMLFormElement>) => {
@@ -44,7 +56,7 @@ function ShoppingList() {
       const response = await fetch(ApiUrl + `/foodschedule/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingredients: inputValue, userId }),
+        body: JSON.stringify({ ingredients: inputValue, userId, weekStart }),
       });
 
       if (!response.ok) {
@@ -55,7 +67,9 @@ function ShoppingList() {
       }
 
       setInputValue("");
-      const updated = await fetch(ApiUrl + `/foodschedule/items/${userId}`);
+      const updated = await fetch(
+        ApiUrl + `/foodschedule/items/${userId}?weekStart=${weekStart}`,
+      );
       if (!updated.ok) {
         throw new Error(`HTTP error! status: ${updated.status}`);
       }

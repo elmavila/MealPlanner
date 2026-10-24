@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChefHat, ChevronUp, Eraser } from "lucide-react";
+import {
+  ChefHat,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Eraser,
+} from "lucide-react";
 import ShoppingList from "../components/ShoppingList";
 import { ApiUrl } from "@/helpers/apiHelpers";
 
@@ -22,24 +28,58 @@ interface Meal {
   lunch: string;
   dinner: string;
   userId: number;
+  week_start: string;
 }
 
-function updateMeal(meal: Meal) {
+interface RecipeLink {
+  id: number;
+  title: string;
+}
+
+function getMondayDate(date: Date) {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
+  const year = monday.getFullYear();
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
+}
+
+function getISOWeekNumber(weekStart: string) {
+  const date = new Date(`${weekStart}T00:00:00`);
+  const thursday = new Date(date);
+  thursday.setDate(date.getDate() + 3);
+  const firstThursday = new Date(thursday.getFullYear(), 0, 4);
+  const difference = thursday.getTime() - firstThursday.getTime();
+  return 1 + Math.round(difference / (7 * 24 * 60 * 60 * 1000));
+}
+
+async function updateMeal(meal: Meal, weekStart: string) {
   const userId = localStorage.getItem("userId");
-  fetch(ApiUrl + "/foodschedule", {
+  const response = await fetch(ApiUrl + "/foodschedule", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ ...meal, userId }),
+    body: JSON.stringify({ ...meal, userId, weekStart }),
   });
+  if (response.ok) window.dispatchEvent(new Event("shopping-list-updated"));
 }
 
 function FoodSchedule() {
   // Skapar en tillståndsvariabel 'meals' som initialt är en tom array
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [recipeLinks, setRecipeLinks] = useState<RecipeLink[]>([]);
+  const [editingMealField, setEditingMealField] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [weekStart, setWeekStart] = useState(() => getMondayDate(new Date()));
+  const currentWeekStart = getMondayDate(new Date());
+  const previousWeekStart = getMondayDate(
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  );
+  const recipeLinkClickTimeout = useRef<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,7 +89,7 @@ function FoodSchedule() {
 
     // Kontrollera om användar-ID finns i localStorage innan du hämtar måltider
     if (userId) {
-      fetch(ApiUrl + `/foodschedule/${userId}`)
+      fetch(ApiUrl + `/foodschedule/${userId}?weekStart=${weekStart}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -60,11 +100,20 @@ function FoodSchedule() {
         // Uppdaterar tillståndet 'meals' med den hämtade datan
 
         .catch((error) => console.error("Error fetching meals:", error));
+      fetch(ApiUrl + `/recipes/${userId}`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data: RecipeLink[]) => setRecipeLinks(data))
+        .catch((error) => console.error("Error fetching recipes:", error));
       // Hanterar eventuella fel som uppstår under hämtningen
     } else {
       console.error("User ID not found in localStorage");
     }
-  }, []);
+  }, [weekStart]);
 
   // Scroll to top functionality
   useEffect(() => {
@@ -94,7 +143,7 @@ function FoodSchedule() {
         currentMeal.id === id ? updatedMeal : currentMeal,
       ),
     );
-    updateMeal(updatedMeal);
+    updateMeal(updatedMeal, weekStart);
     console.log(`${id}, ${newText}`);
   };
 
@@ -107,8 +156,81 @@ function FoodSchedule() {
         currentMeal.id === id ? updatedMeal : currentMeal,
       ),
     );
-    updateMeal(updatedMeal);
+    updateMeal(updatedMeal, weekStart);
     console.log(`${id}, ${newText}`);
+  };
+
+  const normalizeRecipeText = (text: string) =>
+    text.trim().replace(/\s+/g, " ").toLocaleLowerCase("sv-SE");
+
+  const findRecipeLink = (mealText: string) =>
+    recipeLinks.find(
+      (recipe) =>
+        normalizeRecipeText(recipe.title) === normalizeRecipeText(mealText),
+    );
+
+  const renderMealField = (
+    meal: Meal,
+    mealType: "lunch" | "dinner",
+    placeholder: string,
+    className: string,
+  ) => {
+    const mealText = mealType === "lunch" ? meal.lunch : meal.dinner;
+    const recipeLink = findRecipeLink(mealText);
+    const fieldKey = `${meal.id}-${mealType}`;
+    const handleChange = (newText: string) =>
+      mealType === "lunch"
+        ? handleLunch(meal.id, newText)
+        : handleDinner(meal.id, newText);
+
+    if (recipeLink && editingMealField !== fieldKey) {
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            if (recipeLinkClickTimeout.current !== null) {
+              window.clearTimeout(recipeLinkClickTimeout.current);
+              recipeLinkClickTimeout.current = null;
+              return;
+            }
+            recipeLinkClickTimeout.current = window.setTimeout(() => {
+              navigate(`/recipes/${recipeLink.id}`);
+              recipeLinkClickTimeout.current = null;
+            }, 250);
+          }}
+          onDoubleClick={() => {
+            if (recipeLinkClickTimeout.current !== null) {
+              window.clearTimeout(recipeLinkClickTimeout.current);
+              recipeLinkClickTimeout.current = null;
+            }
+            setEditingMealField(fieldKey);
+          }}
+          className={`${className} flex h-auto w-full cursor-pointer !items-start !justify-start rounded-md border px-3 py-2 text-left font-normal leading-normal text-foreground shadow-xs outline-none`}
+          aria-label={`Edit meal or open recipe ${recipeLink.title}`}
+        >
+          {mealText}
+        </button>
+      );
+    }
+
+    return (
+      <Textarea
+        value={mealText}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={(e) => {
+          handleChange(e.target.value);
+          setEditingMealField(null);
+        }}
+        onKeyDown={(e) => handleKeyDown(e, meal.id, mealType)}
+        placeholder={placeholder}
+        className={className}
+        onInput={(e) => {
+          const target = e.target as HTMLTextAreaElement;
+          target.style.height = "auto";
+          target.style.height = `${target.scrollHeight}px`;
+        }}
+      />
+    );
   };
 
   const handleClearAll = () => {
@@ -126,7 +248,7 @@ function FoodSchedule() {
     }));
 
     setMeals(clearedMeals);
-    clearedMeals.forEach(updateMeal);
+    clearedMeals.forEach((meal) => updateMeal(meal, weekStart));
   };
 
   const handleLogout = () => {
@@ -196,6 +318,35 @@ function FoodSchedule() {
               <Eraser className="h-4 w-4" />
               Clear all fields
             </Button>
+            <div className="ml-0 flex w-fit items-center gap-0 rounded-md border border-[#6f8a4f] bg-[#FEFAE0] px-0.5 py-1 sm:ml-auto">
+              {weekStart === currentWeekStart && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWeekStart(previousWeekStart)}
+                  aria-label="Show previous week"
+                  className="h-7 w-7 text-[#6f8a4f] hover:bg-[#e8eed8]"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <span className="min-w-[4.5rem] text-center text-sm font-semibold text-[#6f8a4f]">
+                Vecka {getISOWeekNumber(weekStart)}
+              </span>
+              {weekStart === previousWeekStart && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWeekStart(currentWeekStart)}
+                  aria-label="Show current week"
+                  className="h-7 w-7 text-[#6f8a4f] hover:bg-[#e8eed8]"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </nav>
 
@@ -203,7 +354,7 @@ function FoodSchedule() {
         <Card className="mb-8 hidden md:block bg-[#FEFAE0] border-[#6f8a4f]">
           <CardHeader>
             <CardTitle className="text-2xl text-[#6f8a4f] font-semibold">
-              Weekly Meal Plan
+              Vecka {getISOWeekNumber(weekStart)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -238,19 +389,12 @@ function FoodSchedule() {
                 <TableRow>
                   {meals.map((meal) => (
                     <TableCell key={`lunch-${meal.id}`} className="p-2">
-                      <Textarea
-                        value={meal.lunch}
-                        onChange={(e) => handleLunch(meal.id, e.target.value)}
-                        onBlur={(e) => handleLunch(meal.id, e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
-                        placeholder="Lunch"
-                        className="min-h-[60px] resize-none border-[#6f8a4f] bg-white/70"
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = "auto";
-                          target.style.height = `${target.scrollHeight}px`;
-                        }}
-                      />
+                      {renderMealField(
+                        meal,
+                        "lunch",
+                        "Lunch",
+                        "min-h-[60px] resize-none border-[#6f8a4f] bg-white/70",
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -258,19 +402,12 @@ function FoodSchedule() {
                 <TableRow>
                   {meals.map((meal) => (
                     <TableCell key={`dinner-${meal.id}`} className="p-2">
-                      <Textarea
-                        value={meal.dinner}
-                        onChange={(e) => handleDinner(meal.id, e.target.value)}
-                        onBlur={(e) => handleDinner(meal.id, e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
-                        placeholder="Dinner"
-                        className="min-h-[60px] resize-none border-[#6f8a4f] bg-white/70"
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = "auto";
-                          target.style.height = `${target.scrollHeight}px`;
-                        }}
-                      />
+                      {renderMealField(
+                        meal,
+                        "dinner",
+                        "Dinner",
+                        "min-h-[60px] resize-none border-[#6f8a4f] bg-white/70",
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -281,7 +418,7 @@ function FoodSchedule() {
 
         {/* Meal Schedule Cards - Mobile Version */}
         <div className="mb-8 md:hidden space-y-4">
-          <ShoppingList />
+          <ShoppingList weekStart={weekStart} />
           <h2 className="text-2xl font-bold text-[#6f8a4f] mb-4">
             Weekly Meal Plan
           </h2>
@@ -310,37 +447,23 @@ function FoodSchedule() {
                     <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                       Lunch
                     </label>
-                    <Textarea
-                      value={meal.lunch}
-                      onChange={(e) => handleLunch(meal.id, e.target.value)}
-                      onBlur={(e) => handleLunch(meal.id, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, meal.id, "lunch")}
-                      placeholder="What's for lunch?"
-                      className="min-h-[80px] resize-none border-[#6f8a4f] focus:border-lime-400 focus:ring-lime-400 bg-white/70"
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = "auto";
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                    />
+                    {renderMealField(
+                      meal,
+                      "lunch",
+                      "What's for lunch?",
+                      "min-h-[80px] resize-none border-[#6f8a4f] focus:border-lime-400 focus:ring-lime-400 bg-white/70",
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                       Dinner
                     </label>
-                    <Textarea
-                      value={meal.dinner}
-                      onChange={(e) => handleDinner(meal.id, e.target.value)}
-                      onBlur={(e) => handleDinner(meal.id, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, meal.id, "dinner")}
-                      placeholder="What's for dinner?"
-                      className="min-h-[80px] resize-none border-[#6f8a4f] focus:border-lime-400 focus:ring-lime-400 bg-white/70"
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = "auto";
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                    />
+                    {renderMealField(
+                      meal,
+                      "dinner",
+                      "What's for dinner?",
+                      "min-h-[80px] resize-none border-[#6f8a4f] focus:border-lime-400 focus:ring-lime-400 bg-white/70",
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -350,7 +473,7 @@ function FoodSchedule() {
 
         {/* Shopping List - desktop only here (mobile version above) */}
         <div className="hidden md:block">
-          <ShoppingList />
+          <ShoppingList weekStart={weekStart} />
         </div>
 
         {/* Scroll to Top Button - Mobile Only */}

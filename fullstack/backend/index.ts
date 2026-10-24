@@ -13,6 +13,17 @@ const startServer = async () => {
     driver: sqlite3.Database,
   });
 
+  const getMondayDate = (date = new Date()) => {
+    const monday = new Date(date);
+    const day = monday.getDay();
+    monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
+    return monday.toISOString().slice(0, 10);
+  };
+  const currentWeekStart = getMondayDate();
+  const previousWeekStart = getMondayDate(
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  );
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +35,7 @@ const startServer = async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       dayOfWeek INTEGER NOT NULL,
+      week_start TEXT NOT NULL,
       lunch TEXT,
       dinner TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id)
@@ -34,6 +46,8 @@ const startServer = async () => {
       userId INTEGER NOT NULL,
       ingredients TEXT NOT NULL,
       checked INTEGER NOT NULL DEFAULT 0,
+      recipe_id INTEGER,
+      week_start TEXT NOT NULL,
       FOREIGN KEY(userId) REFERENCES users(id)
     );
 
@@ -54,6 +68,18 @@ const startServer = async () => {
     "Ett eget favoritrecept.",
   ]);
 
+  const mealColumns = await db.all("PRAGMA table_info(meal)");
+  if (
+    !mealColumns.some(
+      (column: { name: string }) => column.name === "week_start",
+    )
+  ) {
+    await db.exec("ALTER TABLE meal ADD COLUMN week_start TEXT");
+    await db.run("UPDATE meal SET week_start = ? WHERE week_start IS NULL", [
+      currentWeekStart,
+    ]);
+  }
+
   const shoppingListColumns = await db.all("PRAGMA table_info(shoppinglist)");
   if (
     !shoppingListColumns.some(
@@ -62,6 +88,25 @@ const startServer = async () => {
   ) {
     await db.exec(
       "ALTER TABLE shoppinglist ADD COLUMN checked INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+
+  if (
+    !shoppingListColumns.some(
+      (column: { name: string }) => column.name === "recipe_id",
+    )
+  ) {
+    await db.exec("ALTER TABLE shoppinglist ADD COLUMN recipe_id INTEGER");
+  }
+  if (
+    !shoppingListColumns.some(
+      (column: { name: string }) => column.name === "week_start",
+    )
+  ) {
+    await db.exec("ALTER TABLE shoppinglist ADD COLUMN week_start TEXT");
+    await db.run(
+      "UPDATE shoppinglist SET week_start = ? WHERE week_start IS NULL",
+      [currentWeekStart],
     );
   }
 
@@ -126,6 +171,56 @@ const startServer = async () => {
 
   const apiRouter = express.Router();
 
+  const syncRecipeShoppingList = async (
+    userId: string | number,
+    weekStart: string,
+  ) => {
+    const meals = await db.all(
+      "SELECT lunch, dinner FROM meal WHERE user_id = ? AND week_start = ?",
+      [userId, weekStart],
+    );
+    const recipes = await db.all(
+      "SELECT id, title, ingredients FROM recipe WHERE user_id = ?",
+      [userId],
+    );
+    const recipeByTitle = new Map(
+      recipes.map((recipe) => [
+        recipe.title.trim().toLocaleLowerCase("sv-SE"),
+        recipe,
+      ]),
+    );
+    const usedRecipeIds = new Set<number>();
+    const ingredientsToAdd: { ingredient: string; recipeId: number }[] = [];
+
+    for (const meal of meals) {
+      for (const mealText of [meal.lunch, meal.dinner]) {
+        if (!mealText) continue;
+        const recipe = recipeByTitle.get(
+          mealText.trim().toLocaleLowerCase("sv-SE"),
+        );
+        if (!recipe) continue;
+        if (usedRecipeIds.has(recipe.id)) continue;
+        usedRecipeIds.add(recipe.id);
+        for (const ingredient of JSON.parse(recipe.ingredients) as string[]) {
+          ingredientsToAdd.push({ ingredient, recipeId: recipe.id });
+        }
+      }
+    }
+
+    await db.run(
+      "DELETE FROM shoppinglist WHERE userId = ? AND week_start = ? AND recipe_id IS NOT NULL",
+      [userId, weekStart],
+    );
+    for (const item of ingredientsToAdd) {
+      await db.run(
+        "INSERT INTO shoppinglist (ingredients, userId, recipe_id, week_start) VALUES (?, ?, ?, ?)",
+        [item.ingredient, userId, item.recipeId, weekStart],
+      );
+    }
+
+    return usedRecipeIds.size;
+  };
+
   apiRouter.post("/register", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -137,9 +232,9 @@ const startServer = async () => {
       const userId = result.lastID;
 
       await db.exec(`
-        INSERT INTO meal (user_id, dayOfWeek) VALUES
-        (${userId},1), (${userId},2), (${userId},3),
-        (${userId},4), (${userId},5), (${userId},6), (${userId},7)
+        INSERT INTO meal (user_id, dayOfWeek, week_start) VALUES
+        (${userId},1,'${currentWeekStart}'), (${userId},2,'${currentWeekStart}'), (${userId},3,'${currentWeekStart}'),
+        (${userId},4,'${currentWeekStart}'), (${userId},5,'${currentWeekStart}'), (${userId},6,'${currentWeekStart}'), (${userId},7,'${currentWeekStart}')
       `);
 
       res.status(201).json({ message: "Användare skapad", email });
@@ -170,10 +265,24 @@ const startServer = async () => {
 
   apiRouter.get("/foodschedule/:userId", async (req, res) => {
     const userId = req.params.userId;
+    const weekStart = String(req.query.weekStart || currentWeekStart);
     try {
+      const existingMeals = await db.all(
+        "SELECT dayOfWeek FROM meal WHERE user_id = ? AND week_start = ?",
+        [userId, weekStart],
+      );
+      const existingDays = new Set(existingMeals.map((meal) => meal.dayOfWeek));
+      for (let dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek += 1) {
+        if (!existingDays.has(dayOfWeek)) {
+          await db.run(
+            "INSERT INTO meal (user_id, dayOfWeek, week_start) VALUES (?, ?, ?)",
+            [userId, dayOfWeek, weekStart],
+          );
+        }
+      }
       const meals = await db.all(
-        "SELECT * FROM meal WHERE user_id = ? ORDER BY dayOfWeek",
-        [userId],
+        "SELECT * FROM meal WHERE user_id = ? AND week_start = ? ORDER BY dayOfWeek",
+        [userId, weekStart],
       );
       res.json(meals);
     } catch (error) {
@@ -238,6 +347,10 @@ const startServer = async () => {
         ingredients,
         instructions,
       });
+      await Promise.all([
+        syncRecipeShoppingList(userId, currentWeekStart),
+        syncRecipeShoppingList(userId, previousWeekStart),
+      ]);
     } catch (error) {
       console.error("Fel vid sparande av recept:", error);
       res.status(500).send("Serverfel");
@@ -285,6 +398,10 @@ const startServer = async () => {
         ingredients,
         instructions,
       });
+      await Promise.all([
+        syncRecipeShoppingList(userId, currentWeekStart),
+        syncRecipeShoppingList(userId, previousWeekStart),
+      ]);
     } catch (error) {
       console.error("Fel vid redigering av recept:", error);
       res.status(500).send("Serverfel");
@@ -303,6 +420,10 @@ const startServer = async () => {
         return;
       }
       res.status(204).send();
+      await Promise.all([
+        syncRecipeShoppingList(userId, currentWeekStart),
+        syncRecipeShoppingList(userId, previousWeekStart),
+      ]);
     } catch (error) {
       console.error("Fel vid radering av recept:", error);
       res.status(500).send("Serverfel");
@@ -311,10 +432,11 @@ const startServer = async () => {
 
   apiRouter.get("/foodschedule/items/:userId", async (req, res) => {
     const userId = req.params.userId;
+    const weekStart = String(req.query.weekStart || currentWeekStart);
     try {
       const items = await db.all(
-        "SELECT id, ingredients, checked FROM shoppinglist WHERE userId = ?",
-        [userId],
+        "SELECT id, ingredients, checked FROM shoppinglist WHERE userId = ? AND week_start = ?",
+        [userId, weekStart],
       );
       res.json(items);
     } catch (error) {
@@ -324,13 +446,14 @@ const startServer = async () => {
   });
 
   apiRouter.put("/foodschedule", async (req, res) => {
-    const { lunch, dinner, id } = req.body;
+    const { lunch, dinner, id, userId, weekStart } = req.body;
     try {
-      await db.run("UPDATE meal SET lunch = ?, dinner = ? WHERE id = ?", [
-        lunch,
-        dinner,
-        id,
-      ]);
+      await db.run(
+        "UPDATE meal SET lunch = ?, dinner = ? WHERE id = ? AND user_id = ? AND week_start = ?",
+        [lunch, dinner, id, userId, weekStart || currentWeekStart],
+      );
+      if (userId)
+        await syncRecipeShoppingList(userId, weekStart || currentWeekStart);
       res.status(200).send("Måltid uppdaterad");
     } catch (error) {
       console.error("Fel vid databasfråga:", error);
@@ -339,11 +462,11 @@ const startServer = async () => {
   });
 
   apiRouter.post("/foodschedule/items", async (req, res) => {
-    const { ingredients, userId } = req.body;
+    const { ingredients, userId, weekStart } = req.body;
     try {
       await db.run(
-        "INSERT INTO shoppinglist (ingredients, userId) VALUES (?, ?)",
-        [ingredients, userId],
+        "INSERT INTO shoppinglist (ingredients, userId, week_start) VALUES (?, ?, ?)",
+        [ingredients, userId, weekStart || currentWeekStart],
       );
       res.status(201).send("Produkt tillagd");
     } catch (error) {
